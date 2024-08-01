@@ -1,0 +1,8 @@
+README.md
+setup.py
+bundle_collection/__init__.py
+bundle_collection.egg-info/PKG-INFO
+bundle_collection.egg-info/SOURCES.txt
+bundle_collection.egg-info/dependency_links.txt
+bundle_collection.egg-info/not-zip-safe
+bundle_collection.egg-info/top_level.txt
