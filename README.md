@@ -1,2 +1,2 @@
-# LefschetzCollections
-LefschetzCollections on partial flag varieties
+# Lefschetz collections
+Lefschetz collections on partial flag varieties
