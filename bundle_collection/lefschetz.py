@@ -140,8 +140,8 @@ class LefschetzCollection(object):
         # 3.3) Test if there are support points and therefore we ensure that not empty
         #      arguments are passed to minimum- and maximum-functions.
         if 0 < len(support):
-            # 3.3.1) If the support is non-empty, run over the list `support` and consider its
-            #        objects.
+            # 3.3.1) If the support is non-empty, run over the list `support` and consi-
+            #        der its objects.
             for point in support:
                 # 3.3.1.1) Test if a support point is given as tuple.
                 assert isinstance(point, tuple), "The support points need to be tuples."
@@ -424,8 +424,8 @@ class LefschetzCollection(object):
         #    Yes: The method has not run yet.
         if self._is_numerically_exceptional == None:
             # 2) Test if the attribute `_is_exceptional` is True.
-            #    Yes: `self` is exceptional and therefore needs to be likewise numerically
-            #         exceptional.
+            #    Yes: `self` is exceptional and therefore needs to be likewise numer-
+            #         ically exceptional.
             if self._is_exceptional == True:
                 self._is_numerically_exceptional = True
             #    No : Run the method.
