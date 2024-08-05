@@ -3,4 +3,3 @@
 """
 
 from bundle_collection.lefschetz import LefschetzCollection
-
