@@ -1,81 +1,463 @@
-#from abc import ABC, abstractmethod
-#from math import prod
-#from typing import Iterator
+from typing import Iterator
 
-from sage.rings.infinity import PlusInfinity , MinusInfinity
+from sage.misc.table import table
+
+from sage.combinat.integer_lists.invlex import IntegerListsLex
+
+from sage.structure.element import Expression
+from sage.calculus.var import var
+from sage.rings.abc import SymbolicRing
 from sage.rings.integer_ring import ZZ
-#from sage.combinat.partition import Partitions
-#from sage.combinat.permutation import Arrangements
-#from sage.combinat.root_system.weyl_characters import WeylCharacterRing
-#from sage.combinat.sf.sf import SymmetricFunctions
-#from sage.rings.polynomial.polynomial_ring_constructor import PolynomialRing
+from sage.matrix.constructor import matrix
+from sage.modules.free_module_element import vector
 
 from homogeneous import *
 
 
 class LefschetzCollection (object) :
 
-    def __contains__ ( self ) -> bool :
-        raise NotImplementedError()        
+    def __add__ ( self , other ) -> "LefschetzCollection" :
+        """
+        Add/ merge to Lefschetz collection.
+        Caution: The process is not commutative.
+        """
+        # 1) Test if `other` is likewise a Lefschetz collection.
+        assert isinstance( other , LefschetzCollection ) , "The input for `other` needs to be likewise a Lefschetz collection."
+        # 2) Test if the twists of both Lefschetz collecitons coincide.
+        assert self._twists == other._twists , "The twists of both Lefschetz collections needs to coincide."
+        # 3) Add/merge both collections.
+        # 3.1) Attach the starting block of `other` to the one of `self`.
+        starting_block = self._starting_block + other._starting_block
+        # 3.2) Keep the twists.
+        twists = self._twists
+        # 3.3) Attach the support of `other` to the one of `self`. Therefore, shift 
+        #      those points in the support where the corresponding bundles in the start-
+        #      ing are shifted in 3.1.
+        #      Note: The lexicographical order will be ensured later when we initialise 
+        #            from this data the Lefschetz collection.
+        shift = len(self._starting_block)        
+        support = self._support + [ tuple( [ point[0]+shift ] + list(point[1:]) ) for point in other._support ]
+        # We are finished. Initialise the Lefschetz collection from the new data.
+        return LefschetzCollection( starting_block , twists , support )
 
-    def __init__ ( self , starting_block: tuple[BundleBWB] , twists: tuple[BundleBWB] , support  ) -> None :
-        self._base_space = None
+    def __contains__ ( self , other ) -> bool :
+        raise NotImplementedError()
+        
+    def __getitem__ ( self ) -> BundleBWB :
+        raise NotImplementedError()  
+
+    def __init__ ( self , starting_block: list[BundleBWB] , twists: list[BundleBWB] , support: list[ vector ]  ) -> None :
+        """
+        Initialise a Lefschetz collection.
+        """
+        # 1) Initialise a starting block of bundles over a common base space.
         self._starting_block = []
-        assert isinstance( starting_block , tuple ) , "The starting block needs to be given as tuple."        
-        for index , bundle in enumerate(starting_block) :
-            assert isinstance( bundle , BundleBWB ) , "The {i}-th bundle in the starting block needs to be a homogeneous bundle in BWB-format.".format(i=index)
-            if index == 0 :
+        self._base_space = None
+        # 1.1) Test if the starting block is given as list.
+        assert isinstance( starting_block , list ) , "The starting block needs to be given as list."
+        # 1.2) Run over the list `starting_block` and consider its objects.
+        for object_index , bundle in enumerate(starting_block) :
+            # 1.2.1) Test if the i-th object is a bundle in the BWB-format.
+            assert isinstance( bundle , BundleBWB ) , "The {i}-th bundle in the starting block needs to be a homogeneous bundle in BWB-format.".format(i=object_index)
+            # 1.2.2) If we consider the first bundle, then store its base space as
+            #        common one. Otherwise, if we consider the second/third/fourth/...
+            #        bundle, then check if their base spaces coincide with the common
+            #        one.
+            if object_index == 0 :
                 self._base_space = bundle._base_space
             else :
-                assert bundle._base_space == self._base_space , "The {i}-th bundle in the starting block does not live over the common base space of the previous bundle(s).".format(i=index)
+                assert bundle._base_space == self._base_space , "The {i}-th bundle in the starting block does not live over the common base space of the previous bundle(s).".format(i=object_index)
+            # 1.2.3) Attach the current bundle as further one to the attribute 
+            #        `_starting_block`.
             self._starting_block += [ bundle ]
-        self._starting_block = tuple(self._starting_block)
-
+        self._x = var("x")
+        # 2) Initialise a list of twists (= line bundles over the common base space).
         self._twists = []
-        assert isinstance( twists , tuple ) , "The twists needs to be a given as tuple."        
-        for index , twist in enumerate(twists) :
-            assert isinstance( twist , BundleBWB ) , "The {i}-th twist needs to be a homogeneous bundle in BWB-format.".format(i=index)
-            assert twist.is_line_bundle() , "The {i}-th twist needs to be a line bundle.".format(i=index)
-            assert twist._base_space == self._base_space , "The {i}-th twist does not live over the common base space.".format(i=index)        
+        # 2.1) Test if the twists are given as list.
+        assert isinstance( twists , list ) , "The twists needs to be a given as list."
+        # 2.2) Run over the list `twists` and consider its objects.
+        for twist_index , twist in enumerate(twists) :
+            # 2.2.1) Test if the i-th object is a bundle in the BWB-format.
+            assert isinstance( twist , BundleBWB ) , "The {i}-th twist needs to be a homogeneous bundle in BWB-format.".format(i=twist_index)
+            # 2.2.2) Test if the i-th bundle is a line bundle.
+            #        In the following just called a twist.
+            assert twist.is_line_bundle() , "The {i}-th twist needs to be a line bundle.".format(i=twist_index)
+            # 2.2.3) Test if the base spaces of i-th twist coincides with the common
+            #        base space.
+            assert twist._base_space == self._base_space , "The {i}-th twist does not live over the common base space.".format(i=twist_index)
+            # 2.2.4) Attach the current twist as further one to the attribute `_twists`.
             self._twists += [ twist ]
-        self._twists = tuple(self._twists)
-
+        # 2.3) The starting block admits the first direction and then each twist gives a
+        #      a new direction. This means, the dimension is one plus the number of
+        #      twists.
+        self._dimension = 1 + len(self._twists)
+        if 1 < self._dimension :
+            self._t = var(",".join([ "t{p}".format(p=position) for position in range(1,self._dimension) ]))
+        else :
+            self._t = None
+        # 3) Initialise the support
         self._support = []
+        # 3.1) For each direction, we store in `_sizes` the minimum and the maximum of 
+        #      the extent.
+        self._sizes = self._dimension*[ ( None , None ) ]
+        # 3.2) Test if the support is given as list.
         assert isinstance( support , list ) , "The support needs to be a list."
-        for point in support :
-            for position , entry in enumerate(point) :
-                if position == 0 :
-                    assert entry in range(len(self._starting_block)) , "For a given support point, the first entry needs to be in the range from 0 to {l}.".format(l=len(self._starting_block))
-                else :
-                    assert entry in ZZ , "For a given support point, the entries need to be integers."
-            self._support += [ point ]
-
+        # 3.3) Test if there are support points and therefore we ensure that not empty 
+        #      arguments are passed to minimum- and maximum-functions.
+        if 0 < len(support) :
+            # 3.3.1) If the support is non-empty, run over the list `support` and consider its
+            #        objects.
+            for point in support :
+                # 3.3.1.1) Test if a support point is given as tuple.
+                assert isinstance( point , tuple ) , "The support points need to be tuples."
+                # 3.3.1.2) Test if a support point has length d (d=dimension).
+                assert len(point) == self._dimension , "The support points need to be of length {d}.".format(d=self._dimension)
+                # 3.3.1.3) Given a support point, run over its entries.
+                for position , entry in enumerate(point) :
+                    # 3.4.1.3.1) The first entry corresponds to a object of the starting
+                    #            block. Hence, it needs to be in the range(l) where l is 
+                    #            the length of the starting block.
+                    #            The remaining entries correspond to twists. Hence, they 
+                    #            need to be integers.
+                    if position == 0 :
+                        assert entry in range(len(self._starting_block)) , "For a given support point, the first entry needs to be in the range from 0 to {l}.".format(l=len(self._starting_block))
+                    else :
+                        assert entry in ZZ , "For a given support point, the entries need to be integers."
+                    # 3.4.1.3.2) For the p-th direction, converge to minimal and maximal 
+                    #            extent. This means, take the minimal and maximal values
+                    #            detected so far, compare with the current value and 
+                    #            converge to the final minimal and maximal values.
+                    old_minimum , old_maximum = self._sizes[position]
+                    if (old_minimum, old_maximum, ) == (None, None, ) :
+                        new_minimum = entry
+                        new_maximum = entry
+                    else :
+                        new_minimum = min([ old_minimum , entry ])
+                        new_maximum = max([ old_maximum , entry ])
+                    self._sizes[position] = (new_minimum,new_maximum,)
+            # 3.3.2) Bring the support points in lexicographical order (i.e. from low to
+            #        high).
+            # 3.3.2.1) The shift describes the vector from the origin to point with mi-
+            #          nimal entries. This is necessary as `IntegerListsLex` runs over 
+            #          non-negative integer lists.
+            shift = vector( ZZ , [ minimum for minimum , maximum in self._sizes ][::-1] )
+            # 3.3.2.2) Run over all non-negative integer points with entries bounded by 
+            #          the appropriated maximal extent in the reversed lexicographical 
+            #          order (i.e. from higher to lower).
+            for point in IntegerListsLex( length=len(self._sizes) , ceiling=[ maximum-minimum for minimum , maximum in self._sizes ][::-1] ) :
+                # Shift the point.
+                # Store its entries reversely.
+                point = tuple( list( vector( ZZ , list(point) ) + shift )[::-1] )
+                # Test if the point is in the support. If yes, then attach it to the 
+                # attribute `_support`.
+                if point in support : self._support += [ point ]
+            # 3.3.2.3) Reverse the order due to reversed lexicographical order of 
+            #          `IntegerListsLex`.
+            self._support.reverse()
+        # 4) Initialise a bunch of auxiliary attributes.
+        # 4.1) If the Gram matrix has been computed, then we store the result in 
+        #      `_gram_matrix`.
         self._gram_matrix = None
+        # 4.2) If it has been checked whether `self` is (numerically) exceptional, then 
+        #      we store the result in `_is_exceptional` or `_is_numerically_exceptional`
+        #      respectively.
         self._is_exceptional = None
         self._is_numerically_exceptional = None
+        # 4.3) If it is known that `self` is full, then one can store a corresponding 
+        #      boolean value.
         self._is_full = None
 
     def __iter__ ( self ) -> Iterator[ BundleBWB ] :
-        raise NotImplementedError()
+        """
+        Run over the objects of `self`.
+        """
+        return ( self.get_object( support_point[0] , support_point[1:] ) for support_point in self._support )
         
     def __len__ ( self ) -> int :
+        """
+        Returns the length of `self`, i.e. the number of objects.
+        """
         return len(self._support)
         
     def __repr__ ( self ) -> tuple :
+        """
+        Returns a developer-friendly description of `self`.
+        """
         return self._starting_block , self._twists , self._support
         
     def __str__ ( self ) -> str :
-        return "Lefschetz collection {l} of over {bs}.".format(l=len(self),bs=self._base_space.as_string())
+        """
+        Returns a user-friendly description of `self`.
+        """
+        return "Lefschetz collection of {l} objects over {bs}.".format(l=len(self),bs=self._base_space.as_string())
 
-    def get_failing_semiorthogonal_relations ( self ) -> Iterator :
-        raise NotImplementedError()        
-        
-    def gram_matrix ( self ) -> Matrix :
-        raise NotImplementedError()        
-        
-    def is_exceptional ( self ) -> bool :
+    def blow_up ( self , new_twist:BundleBWB ,  extension:tuple ) -> "LefschetzCollection" :
+        """
+        Returns a user-friendly description of `self`.
+        """
+        # 1) Various tests on the input `new_twist`.
+        # 1.1) Test if the new twist is a bundle in the BWB-format.
+        assert isinstance( new_twist , BundleBWB ) , "The twist needs to be a homogeneous bundle in the BWB-format."
+        # 1.2) Test if the base space of the new twist coincides with the common base 
+        #    space.
+        assert new_twist._base_space == self._base_space , "The twist needs to live over the common base space."
+        # 1.3) Test if the new twist is a line bundle.
+        assert new_twist.is_line_bundle() , "The twist needs to be a line bundle."
+        # 2) Various tests on the input `extension`.
+        # 2.1) Test if the new support is given as tuple.
+        assert isinstance( extension , tuple ) , "The new support needs to be give as tuple."
+        # 2.2) Test if the new support is non-empty.
+        assert 0 < len(extension) , "The new support needs to cointain entries."
+        # 2.3) Test if the new support consists of integers.
+        for index , entry in enumerate(extension) : 
+            assert entry in ZZ , "The {i}-th entry in the new support needs to be an integer.".format(i=index)
+        # 2.4) Prepare the input `extension`.
+        #      set: No doubles
+        #      sorted: Sorted entries from low to high
+        extension = tuple(sorted(list(set(extension))))
+        # 3) Form data for new Lefschetz collection
+        # 3.1) Extend the current twists by the new one.
+        twists = self._twists + [ new_twist ]
+        # 3.2) Extend the support points.
+        support = [ tuple( list(old_point)+[entry] ) for old_point in list(self._support) for entry in extension ]
+        # We are finished.
+        return LefschetzCollection( self._starting_block , twists , support )
+
+    def get_semiorthogonal_relations ( self ) -> Iterator :
         raise NotImplementedError()
+        
+    def get_object ( self , object_index: int, twisting:tuple[int] ) -> BundleBWB :
+        """
+        Returns a selected object of `self`.
+        """
+        # 1) Test if the object index is an integer.
+        assert object_index in ZZ, "The object index needs to be an integer."
+        # 2) Test if the twisting is a tuple of length d-1 (d=dimension).
+        assert isinstance( twisting , tuple ) , "The twisting needs to be given as tuple."
+        assert len(twisting) == self._dimension-1 , "The number of twists needs to be {c}.".format(c=self._dimension-1)
+        # 3) Form the corresponding point.
+        point = tuple( [ object_index ] + list(twisting) )
+        # 4) Test if the point lies in the support.
+        #    Yes: Construct the corresponding object
+        if point in self._support :
+            output = self._starting_block[object_index]
+            for position , exponent in enumerate(twisting) :
+                output *= ( self._twists[position]**exponent )
+        #    No : Return the zero bundle.
+        else :
+            output = self._base_space.zero_bundle()
+        # We are finished.
+        return output                
+        
+    def get_subcollection ( self , *equations ) -> "LefschetzCollection" :
+        """
+        Returns a subcollection with respect to a family of equations.
+        """
+        # 1) Test if the input for `equations` are expressions.
+        for index , equation in enumerate(equations) :
+            assert isinstance( equation , Expression ) ,  "The {i}-th equation needs to be an expression.".format(i=index)
+        # 2) Collect the remaining support points satisfying the bunch of equations.
+        #    Run over the set of support points and evaluate each equation at this 
+        #    point. If each equation holds, then keep the point as support point.
+        support = [ support_point
+                    for support_point in self._support
+                    if not False in [ bool(equation(dict([ (variable,value)
+                                                           for variable , value in zip( [ self._x ] + list(self._t) , support_point )
+                                                         ]
+                                                        )
+                                                   )
+                                          )
+                                      for equation in equations
+                                    ]
+                  ]
+        return LefschetzCollection( self._starting_block , self._twists , support )
+                
+    def gram_matrix ( self ) -> "matrix" :
+        """
+        Returns the Gram matrix of `self`.
+        The entry in the p-th row and q-th column computes as
+           sum_{i} (-1)^i Ext^i( E_p , E_q ).
+        """
+        # Test if the attribute `_gram_matrix` is None.
+        # Yes: The method has not run yet.        
+        if self._gram_matrix == None :
+            self._gram_matrix = matrix( self._base_space._WCR , [ [ (E1.dual()*E2).euler_characteristic() for E2 in self ] for E1 in self ] )
+        # Return the stored result.
+        return self._gram_matrix
+
+    def is_exceptional ( self ) -> bool :
+        """
+        Test if self is exceptional.
+        """
+        # 1) Test if the attribute `_is_exceptional` is None.
+        #    Yes: The method has not run yet.
+        if self._is_exceptional == None :
+            # 2) Test if the attribute `_is_numerically_exceptional` is False.
+            #    Yes: `self` is not numerically exceptional and therefore it can not be
+            #         exceptional.
+            if self._is_numerically_exceptional == False :
+                self._is_exceptional = False
+            #    No : Run the method.
+            else :
+                # 3) Run over the set of necessary semiorthogonal relations:
+                for ( x1 , t1 ) , ( x2 , t2 ) in self.get_semiorthogonal_relations() :
+                    # 3.1) Test if each object is exceptional.
+                    if x1 == x2 and t1 == t2 :
+                        E = self.get_object( x1 , t1 )
+                        if E.is_exceptional() == False :
+                            self._is_exceptional = False
+                            break
+                    # 3.2) Test if there are no morphims from hight to low.
+                    else :
+                        E1 = self.get_object( x1 , t1 )
+                        E2 = self.get_object( x1 , t1 )
+                        if E2.is_semiorthogonal_to( E1 ) == False :
+                            self._is_exceptional = False
+                            break
+                # 4) If we reach this point, then all semiorthogonal relations are sa-
+                #    tisfied. Hence, `self` needs to be exceptional.
+                self._is_exceptional = True
+        # Return the stored result.
+        return self._is_exceptional
                 
     def is_numerically_exceptional ( self ) -> bool :
-        raise NotImplementedError()
-        
+        """
+        Test if self is numerically exceptional.
+        """
+        # 1) Test if the attribute `_is_numerically_exceptional` is None.
+        #    Yes: The method has not run yet.
+        if self._is_numerically_exceptional == None :
+            # 2) Test if the attribute `_is_exceptional` is True.
+            #    Yes: `self` is exceptional and therefore needs to be likewise numerically
+            #         exceptional.
+            if self._is_exceptional == True :
+                self._is_numerically_exceptional = True
+            #    No : Run the method.
+            else :
+                # 3) Run over the set of necessary semiorthogonal relations:            
+                for ( x1 , t1 ) , ( x2 , t2 ) in self.get_semiorthogonal_relations() :
+                    # 3.1) Test if each object is exceptional.                
+                    if x1 == x2 and t1 == t2 :
+                        E = self.get_object( x1 , t1 )
+                        E.is_numerically_exceptional()
+                    # 3.2) Test if there are no morphims from hight to low.                        
+                    else :
+                        E1 = self.get_object( x1 , t1 )
+                        E2 = self.get_object( x1 , t1 )
+                        E2.is_numerically_semiorthogonal_to( E1 )
+                # 4) If we reach this point, then all semiorthogonal relations are sa-
+                #    tisfied numerically. Hence, `self` needs to be numerical exception-
+                #    al.
+                self._is_numerically_exceptional = True
+        # Return the stored result.
+        return self._is_numerically_exceptional
+            
+    def remove_object ( self , object_index: int, twisting:tuple[int] ) -> "LefschetzCollection" :
+        """
+        Remove an object from the support.
+        """
+        # 1) Test if the object index is an integer.
+        assert object_index in ZZ, "The object index needs to be an integer."
+        # 2) Test if the twisting is given as tuple of length d-1 (d=dimension).
+        assert isinstance( twisting , tuple ) , "The twists needs to be given as tuple."
+        assert len(twisting) == self._dimension-1 , "The number of twists needs to be {c}.".format(c=self._dimension-1)
+        # 3) Form a point from the input.
+        point = tuple( [ object_index ] + list(twisting) )
+        # 4) Test if the point lies in the support.
+        #    Yes: Remove the point from the support and initialise a Lefschetz collec-
+        #         tion from the new data.
+        #    No : Return the old Lefschetz collection.
+        if point in self._support :
+            support = self._support
+            support.remove(point)
+            return LefschetzCollection( self._starting_block , self._twists , support )
+        else : 
+            return self
+
+    def show_layer ( self ) -> table :
+        """
+        Returns a table showing the objects in a grid.
+        """
+        # Test if the support is empty.
+        # Yes: Return empty table.
+        if len(self._support) == 0 :
+            body = [ [ ] ]
+            return table( body )
+        # No : Go on.
+        else :
+            # 1) Find directions where we can extent.
+            directions_to_extent = tuple([ position for position , ( minimum , maximum ) in enumerate(self._sizes) if minimum < maximum ])
+            # Dimension 0
+            # There is no free direction. However, the support is not empty. Hence, the
+            # there needs to be an unique point.
+            if len(directions_to_extent) == 0 :
+                # Logical test if there is a unique support point.
+                assert len(self._support) == 1 , "There are now directions to extent. Hence, there needs to be a unique support point."
+                x = self._support[0][0]
+                twisting = self._support[0][1:]
+                if len(twisting) == 0 :
+                    body = [ [ "E{x}".format(x=x) ] ]
+                else :
+                    body = [ [ "E{x}{t}".format(x=x,t=twisting) ] ]
+                return table( body )                
+            # Dimension 1
+            # There is one free direction.
+            elif len(directions_to_extent) == 1 :
+                (position1,) = directions_to_extent
+                range1 = range(self._sizes[position1][0],self._sizes[position1][1]+1)
+                # If we run in x-direction, then each new object gives a new column.
+                if position1 == 0 :
+                    body = []
+                    for x in range1 :
+                        twisting = [ minimum for position , ( minimum , maximum ) in enumerate(self._sizes) if 0 < position ]
+                        point = tuple( [ x ] + twisting )
+                        if point in self._support :
+                            if len(twisting) == 0 :
+                                body += [ [ "E{x}".format(x=x) ] ]
+                            else :
+                                body += [ [ "E{x}({t})".format(x=x,t=",".join([ str(exponent) for exponent in twisting])) ] ]
+                        else :
+                            body += [ [ "" ] ]
+                # If we run in some t-direction, then each new object is part of the
+                # same row (= orbit).
+                else :
+                    x = self._sizes[0][0]
+                    twisting_before = [ minimum for position , ( minimum , maximum ) in enumerate(self._sizes) if 0 < position and position < position1 ]
+                    twisting_after  = [ minimum for position , ( minimum , maximum ) in enumerate(self._sizes) if position1 < position ]
+                    row = []
+                    for value in range1 :
+                        twisting = twisting_before + [ value ] + twisting_after
+                        point = tuple( [x] + twisting )
+                        if point in self._support :
+                            row += [ "E{x}({t})".format(x=x,t=",".join([ str(exponent) for exponent in twisting])) ]
+                        else :
+                            row += [ "" ]
+                    body = [ row ]
+                return table( body )
+            # Dimension 2
+            # There are two free directions. Hence, the first directions gives rows and
+            # the second one columns.
+            elif len(directions_to_extent) == 2 :
+                (position1,position2,) = directions_to_extent
+                range1 = range(self._sizes[position1][0],self._sizes[position1][1]+1)
+                range2 = range(self._sizes[position2][0],self._sizes[position2][1]+1)
+                before = [ minimum for position , ( minimum , maximum ) in enumerate(self._sizes) if position < position1 ]
+                mid = [ minimum for position , ( minimum , maximum ) in enumerate(self._sizes) if position1 < position and position < position2 ]
+                after = [ minimum for position , ( minimum , maximum ) in enumerate(self._sizes) if position2 < position ]
+                body = []
+                for value1 in range1 :
+                    row = []
+                    for value2 in range2 :
+                        point = tuple( before + [ value1 ] + mid + [ value2 ] + after )
+                        x = point[0]
+                        twisting = point[1:]
+                        if point in self._support :
+                            row += [ "E{x}({t})".format(x=x,t=",".join([ str(exponent) for exponent in twisting])) ]
+                        else :
+                            row += [ '' ]
+                    body += [ row ]
+                return table( body )                    
+            # Dimension 3, 4, ...
+            # There are more than two directions. We can not print a 2D-table from this.
+            else :
+                return "CAUTION: Can not print a layer for more than two free directions."
