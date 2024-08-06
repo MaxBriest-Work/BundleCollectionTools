@@ -667,26 +667,28 @@ class LefschetzCollection(object):
 def Constructor2D ( starting_block, twist ) :
     initial = LefschetzCollection( starting_block , [twist] , [] )
 
-    def by_row_lengths ( row_lengths:tuple[int] ) -> LefschetzCollection :
+    def by_row_lengths ( *row_lengths:tuple[int] ) -> LefschetzCollection :
         assert isinstance( row_lengths , tuple ) , "The input for `row_lengths` needs to be a tuple."
+        assert len(row_lengths) == len(initial._starting_block) , "There number of row lengths needs to coincide with the number of objects in the starting block."
         support = []
         for index , length in enumerate(row_lengths) :
             assert length in ZZ , "The {i}-th row length needs to be an integer."
             assert 0 <= length , "The {i}-th row length needs to be non-negative."
             support += [ (index,i,) for i in range(length) ]
-        return LefschetzCollection( initial._starting_blow , initial._twists , support )
+        return LefschetzCollection( initial._starting_block , initial._twists , support )
+
+def Beilinson (n:int) -> LefschetzCollection :
+    assert n in ZZ , "The input for `n` needs to be an integer."
+    assert 0 <= n , "The integer `n` needs to be non-negative."
+    X = variety.PP(n)
+    return Constructor2D( X.O() , X.O(1) ).by_row_lengths( n+1 )
                 
-def MyCollection () :
+def MyCollection () -> LefschetzCollection :
     X = variety.OGr(3,9)
-    fw = X._fw
-    LC  = LefschetzCollection( [X.O()] , [] , [(0,)] )
-    LC += LefschetzCollection( [X.U().dual()] , [] , [(0,)] )
-    LC += LefschetzCollection( [X.U().dual().wedge(2)] , [] , [(0,)] )
-    LC += LefschetzCollection( [X.S()] , [] , [(0,)] )
-    LC += LefschetzCollection( [X.S()*X.U().dual() + X.S()] , [] , [(0,)] )
-    LC += LefschetzCollection( [X.S()*X.U().dual().sym(2) + X.S()*X.U().dual()] , [] , [(0,)] )
-    LC  = LC.blow_up( X.O(1) , (0,1,2,3,4,) )
-    LC  = LC.remove_object( 5 , (2,) )
-    LC  = LC.remove_object( 5 , (3,) )
-    LC  = LC.remove_object( 5 , (4,) )        
-    return LC
+    E0 = X.O()
+    E1 = X.U().dual()
+    E2 = X.U().dual().wedge(2)
+    E3 = X.S()
+    E4 = X.S()*X.U().dual() + X.S()
+    E5 = X.S()*X.U().dual().sym(2) + X.S()*X.U().dual()s
+    return Constructor2D( [ E0, E1, E2, E3, E4, E5 ] , X.O(1) ).by_row_lengths( 5, 5, 5, 5, 5, 2 )
