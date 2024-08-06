@@ -300,6 +300,40 @@ class LefschetzCollection(object):
         # We are finished.
         return LefschetzCollection(self._starting_block, twists, support)
 
+    def get_semiorthogonal_relation_for_object(self, object, object_index: int, twisting: tuple[int] ) -> Iterator:
+        # 1) Test if the object index is an integer.
+        assert object_index in ZZ, "The object index needs to be an integer."
+        # 2) Test if the twisting is a tuple of length d-1 (d=dimension).
+        assert isinstance(twisting, tuple), "The twisting needs to be given as tuple."
+        assert (
+            len(twisting) == self._dimension - 1
+        ), "The number of twists needs to be {c}.".format(c=self._dimension - 1)
+        # 3) Form the corresponding point.
+        point = tuple([object_index] + list(twisting))
+        # 4) Test if the point lies in the support.
+        #    Yes: Go on and find corresponding semiorthogonal relations.
+        #    No : No semiorthogonal relations appear.
+        if point in self._support :
+            # As we start at the beginning of the support, we are before our point.
+            relative_position = "before"
+            # 4.1) Run over the support.
+            for other in self._support :
+                # 4.1.1) If we are before our point, return (other,point).
+                if relative_position == "before" :
+                    x1 = other[0]
+                    t1 = other[1:]
+                    x2 = point[0]
+                    t2 = point[1:]
+                    if other == point :
+                        relative_position == "after"
+                # 4.1.2) If we are after our point, return (point,other).
+                else :
+                    x1 = point[0]
+                    t1 = point[1:]
+                    x2 = other[0]
+                    t2 = other[1:]
+                yield (x1,t1,), (x2,t2,)
+
     def get_semiorthogonal_relations(self) -> Iterator:
         raise NotImplementedError()
 
