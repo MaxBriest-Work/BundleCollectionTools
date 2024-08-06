@@ -3,13 +3,13 @@ from typing import Iterator
 from homogeneous import *
 from sage.calculus.var import var
 from sage.combinat.integer_lists.invlex import IntegerListsLex
+from sage.functions.other import ceil, floor
 from sage.matrix.constructor import matrix
 from sage.misc.table import table
 from sage.modules.free_module_element import vector
 from sage.rings.abc import SymbolicRing
 from sage.rings.integer_ring import ZZ
 from sage.structure.element import Expression
-from sage.functions.other import floor , ceil
 
 
 class LefschetzCollection(object):
@@ -47,23 +47,23 @@ class LefschetzCollection(object):
     def __contains__(self, other) -> bool:
         raise NotImplementedError()
 
-    def __getitem__(self, arg:int or slice) -> BundleBWB or list[BundleBWB] :
+    def __getitem__(self, arg: int or slice) -> BundleBWB or list[BundleBWB]:
         """
         Returns a single objects or a slice from `self`.
         """
         # 1) Test if the input is a single integer.
         #    Yes: Take the corresponding support point and get the appropriate object.
-        if arg in ZZ :
+        if arg in ZZ:
             point = self._support[arg]
-            return self.get_object( point[0] , point[1:] )
+            return self.get_object(point[0], point[1:])
         # 2) Test if the input is a slice.
-        #    Yes: Take the corresponding support points and get the appropriate objects.            
-        elif isinstance( arg , slice ) :
+        #    Yes: Take the corresponding support points and get the appropriate objects.
+        elif isinstance(arg, slice):
             points = self._support[arg]
-            return [ self.get_object( point[0] , point[1:] ) for point in points ]
+            return [self.get_object(point[0], point[1:]) for point in points]
         # 3) If we have had always no in the previous tests, then we do not understand
         #    the input.
-        else :
+        else:
             raise ValueError("We do not understand the passed argument.")
 
     def __init__(
@@ -242,7 +242,7 @@ class LefschetzCollection(object):
         #      boolean value.
         self._is_full = None
         # 4.4)
-        self._semiorthogonal_relations = None        
+        self._semiorthogonal_relations = None
 
     def __iter__(self) -> Iterator[BundleBWB]:
         """
@@ -362,22 +362,24 @@ class LefschetzCollection(object):
                 )
 
     def get_semiorthogonal_relations(self) -> Iterator:
-        if self._semiorthogonal_relations == None :
+        if self._semiorthogonal_relations == None:
             semiorthogonal_relations = dict({})
-            for point1 in self._support :
+            for point1 in self._support:
                 x = point1[0]
                 t = point1[1:]
-                for (x1,t1), (x2,t2) in self.get_semiorthogonal_relations_for_object(x,t) :
-                    if not (x1,x2) in semiorthogonal_relations.keys() :
-                        semiorthogonal_relations.update({ (x1,x2) : [] })
-                    difference = tuple(vector(ZZ,t2)-vector(ZZ,t1))
-                    if not difference in semiorthogonal_relations[(x1,x2)] :
-                        semiorthogonal_relations[(x1,x2)] += [difference]
+                for (x1, t1), (x2, t2) in self.get_semiorthogonal_relations_for_object(
+                    x, t
+                ):
+                    if not (x1, x2) in semiorthogonal_relations.keys():
+                        semiorthogonal_relations.update({(x1, x2): []})
+                    difference = tuple(vector(ZZ, t2) - vector(ZZ, t1))
+                    if not difference in semiorthogonal_relations[(x1, x2)]:
+                        semiorthogonal_relations[(x1, x2)] += [difference]
             self._semiorthogonal_relations = semiorthogonal_relations
-        zero = tuple((self._dimension-1)*[0])
-        for (x1,x2) in self._semiorthogonal_relations.keys() :
-            for difference in self._semiorthogonal_relations[(x1,x2)] :
-                yield (x1,zero), (x2,difference)
+        zero = tuple((self._dimension - 1) * [0])
+        for x1, x2 in self._semiorthogonal_relations.keys():
+            for difference in self._semiorthogonal_relations[(x1, x2)]:
+                yield (x1, zero), (x2, difference)
 
     def get_object(self, object_index: int, twisting: tuple[int]) -> BundleBWB:
         """
@@ -488,7 +490,7 @@ class LefschetzCollection(object):
                             break
                 # 4) If we reach this point, then all semiorthogonal relations are sa-
                 #    tisfied. Hence, `self` needs to be exceptional.
-                if self._is_exceptional == None :
+                if self._is_exceptional == None:
                     self._is_exceptional = True
         # Return the stored result.
         return self._is_exceptional
@@ -521,7 +523,7 @@ class LefschetzCollection(object):
                 # 4) If we reach this point, then all semiorthogonal relations are sa-
                 #    tisfied numerically. Hence, `self` needs to be numerical exception-
                 #    al.
-                if self._is_numerically_exceptional == None :
+                if self._is_numerically_exceptional == None:
                     self._is_numerically_exceptional = True
         # Return the stored result.
         return self._is_numerically_exceptional
@@ -699,28 +701,38 @@ class LefschetzCollection(object):
                 return (
                     "CAUTION: Can not print a layer for more than two free directions."
                 )
-                
-def Construct_2D_by_rows ( twist:BundleBWB , rows:list[tuple[BundleBWB,int]] ) -> LefschetzCollection :
-    assert isinstance( rows , list ) , "The input for `rows` needs to be a list."
-    twists = [ twist ]
+
+
+def Construct_2D_by_rows(
+    twist: BundleBWB, rows: list[tuple[BundleBWB, int]]
+) -> LefschetzCollection:
+    assert isinstance(rows, list), "The input for `rows` needs to be a list."
+    twists = [twist]
     starting_block = []
     support = []
-    for index , row in enumerate(rows) :
-        assert isinstance( row , tuple ) , "The input for {i}-th row needs to be a tuple."
-        assert len(row) == 2 , "The {i}-th row needs to be a tuple of length 2."
-        bundle , row_length = row
-        assert row_length in ZZ , "The {i}-th row length needs to be an integer."
-        assert 0 <= row_length , "The {i}-th row length needs to be non-negative."
-        starting_block += [ bundle ]
-        support += [ (index,i,) for i in range(row_length) ]
-    return LefschetzCollection( starting_block , twists , support )
+    for index, row in enumerate(rows):
+        assert isinstance(row, tuple), "The input for {i}-th row needs to be a tuple."
+        assert len(row) == 2, "The {i}-th row needs to be a tuple of length 2."
+        bundle, row_length = row
+        assert row_length in ZZ, "The {i}-th row length needs to be an integer."
+        assert 0 <= row_length, "The {i}-th row length needs to be non-negative."
+        starting_block += [bundle]
+        support += [
+            (
+                index,
+                i,
+            )
+            for i in range(row_length)
+        ]
+    return LefschetzCollection(starting_block, twists, support)
 
-def Beilinson (n:int ) -> LefschetzCollection :
+
+def Beilinson(n: int) -> LefschetzCollection:
     """
     Returns Beilinson's full exceptional collection on the projective space PP(n).
 
     OUTPUT:
-    - Lefschetz collection with starting block ( O_X ) and support partition 
+    - Lefschetz collection with starting block ( O_X ) and support partition
       (n+1)*[ 1 ].
 
     REFERENCE:
@@ -728,9 +740,10 @@ def Beilinson (n:int ) -> LefschetzCollection :
       Funktsional. Anal. i Prilozhen.12(1978), no.3, 68–69.
     """
     X = variety.PP(n)
-    return Construct_2D_by_rows( X.O(1), [(X.O(),n+1)] )
-    
-def Fonarev (k:int, N:int ) -> LefschetzCollection :
+    return Construct_2D_by_rows(X.O(1), [(X.O(), n + 1)])
+
+
+def Fonarev(k: int, N: int) -> LefschetzCollection:
     """
     Returns Fonarev's (conjecturally full) minimal exceptional collection on the Grass-
     mannian Gr(k,N).
@@ -742,72 +755,86 @@ def Fonarev (k:int, N:int ) -> LefschetzCollection :
     - [Fon2012] Fonarev, A.: On minimal Lefschetz decompositions for Grassmannians
     """
     raise NotImplementedError()
-    #X = variety.Gr(k,N)
-    #output = Empty_Collection()
-    #for young_diagram , orbit_length in YoungDiagram.minimal_upper_triangulars( N-k , k ) :
+    # X = variety.Gr(k,N)
+    # output = Empty_Collection()
+    # for young_diagram , orbit_length in YoungDiagram.minimal_upper_triangulars( N-k , k ) :
     #    bdl = X.bdl( YD )
     #    row_length = orbit_length
     #    rows += [ (bdl, row_length ) ]
-    #return Construct_2D_by_rows( X.O(1), rows )
-    
-def Kapranov (k:int, N:int ) -> LefschetzCollection :
+    # return Construct_2D_by_rows( X.O(1), rows )
+
+
+def Kapranov(k: int, N: int) -> LefschetzCollection:
     """
     Returns Kapranov's full exceptional collection on the Grassmannian Gr(k,N).
 
     OUTPUT:
-    - Full exceptional collection cU^alpha with n-k => alpha_1 => alpha_2 => ... => 
+    - Full exceptional collection cU^alpha with n-k => alpha_1 => alpha_2 => ... =>
       alpha_k => 0 (lexicographically orderd)
 
     REFERENCE:
-    - [Kap1988] Kapranov, M. M.: On the derived categories of coherent sheaves on some 
+    - [Kap1988] Kapranov, M. M.: On the derived categories of coherent sheaves on some
       homogeneous spaces. Invent. Math.92(1988), no.3, 479–508.
     """
-    X = variety.Gr(k,N)
+    X = variety.Gr(k, N)
     n = X.cartan_rank()
-    weights = [ tuple( list(partition) + (n-k+1)*[ 0 ] )
-                for partition in IntegerListsLex( length=k-1 , max_part=N-k , max_slope=0 )
-              ]
+    weights = [
+        tuple(list(partition) + (n - k + 1) * [0])
+        for partition in IntegerListsLex(length=k - 1, max_part=N - k, max_slope=0)
+    ]
     weights.reverse()
-    rows = []    
-    for weight in weights :
-        bdl        = bundle.BundleBWB.from_tuple( X , weight, "ambt" )
-        row_length = N-k+1-weight[0]
-        rows += [ ( bdl, row_length ) ]
-    return Construct_2D_by_rows( X.O(1), rows )
-   
-def SpinorSubcollection (n:int) -> LefschetzCollection :
-    assert n in ZZ , "The input for `n` needs to be an integer."
-    assert 3 < n , "The integer `n` needs to be greater than 3."
-    X = variety.OGr(3,2*n+1)
     rows = []
-    for d in range(n-1) :
-        if d == 0 :
-            bdl        = X.S()
-            row_length = 2*n-3
-        elif 1 <= d and d <= n-3 :
-            bdl        = X.S()*X.U().dual().sym(d)   + X.S()*X.U().dual().sym(d-1)
-            row_length = 2*n-3            
-        elif d == n-2 :
-            bdl        = X.S()*X.U().dual().sym(n-2) + X.S()*X.U().dual().sym(n-3)
-            row_length = n-2
-        rows += [ ( bdl, row_length ) ]
-    return Construct_2D_by_rows( X.O(1), rows )
-    
-def TautologicalSubcollection (n:int) -> LefschetzCollection :
-    assert n in ZZ , "The input for `n` needs to be an integer."
-    assert 3 < n , "The integer `n` needs to be greater than 3."
-    X = variety.OGr(3,2*n+1)
+    for weight in weights:
+        bdl = bundle.BundleBWB.from_tuple(X, weight, "ambt")
+        row_length = N - k + 1 - weight[0]
+        rows += [(bdl, row_length)]
+    return Construct_2D_by_rows(X.O(1), rows)
+
+
+def SpinorSubcollection(n: int) -> LefschetzCollection:
+    assert n in ZZ, "The input for `n` needs to be an integer."
+    assert 3 < n, "The integer `n` needs to be greater than 3."
+    X = variety.OGr(3, 2 * n + 1)
+    rows = []
+    for d in range(n - 1):
+        if d == 0:
+            bdl = X.S()
+            row_length = 2 * n - 3
+        elif 1 <= d and d <= n - 3:
+            bdl = X.S() * X.U().dual().sym(d) + X.S() * X.U().dual().sym(d - 1)
+            row_length = 2 * n - 3
+        elif d == n - 2:
+            bdl = X.S() * X.U().dual().sym(n - 2) + X.S() * X.U().dual().sym(n - 3)
+            row_length = n - 2
+        rows += [(bdl, row_length)]
+    return Construct_2D_by_rows(X.O(1), rows)
+
+
+def TautologicalSubcollection(n: int) -> LefschetzCollection:
+    assert n in ZZ, "The input for `n` needs to be an integer."
+    assert 3 < n, "The integer `n` needs to be greater than 3."
+    X = variety.OGr(3, 2 * n + 1)
     weights = []
-    weights += [ tuple( list(partition) + (n-3)*[ 0 ] )
-                 for partition in IntegerListsLex( length=3 , floor=[ n-2 , 0 , 0 ] , ceiling=[ floor(3/2*(n-3)) , ceil(1/2*(n-3)) , 0 ] , min_slope=-n+3 , max_slope=0 )
-               ]
-    weights += [ tuple( list(partition) + (n-3)*[ 0 ] )
-                 for partition in IntegerListsLex( length=3 , ceiling=(3-1)*[n-3]+[0] , max_slope=0 )
-               ]
+    weights += [
+        tuple(list(partition) + (n - 3) * [0])
+        for partition in IntegerListsLex(
+            length=3,
+            floor=[n - 2, 0, 0],
+            ceiling=[floor(3 / 2 * (n - 3)), ceil(1 / 2 * (n - 3)), 0],
+            min_slope=-n + 3,
+            max_slope=0,
+        )
+    ]
+    weights += [
+        tuple(list(partition) + (n - 3) * [0])
+        for partition in IntegerListsLex(
+            length=3, ceiling=(3 - 1) * [n - 3] + [0], max_slope=0
+        )
+    ]
     weights.reverse()
     rows = []
-    for weight in weights :
-        bdl        = bundle.BundleBWB.from_tuple( X , weight, "ambt" )
-        row_length = 2*n-3
-        rows += [ ( bdl, row_length ) ]
-    return Construct_2D_by_rows( X.O(1), rows )
+    for weight in weights:
+        bdl = bundle.BundleBWB.from_tuple(X, weight, "ambt")
+        row_length = 2 * n - 3
+        rows += [(bdl, row_length)]
+    return Construct_2D_by_rows(X.O(1), rows)
