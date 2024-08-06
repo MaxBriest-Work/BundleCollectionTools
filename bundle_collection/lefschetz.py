@@ -300,8 +300,8 @@ class LefschetzCollection(object):
         # We are finished.
         return LefschetzCollection(self._starting_block, twists, support)
 
-    def get_semiorthogonal_relation_for_object(
-        self, object, object_index: int, twisting: tuple[int]
+    def get_semiorthogonal_relations_for_object(
+        self, object_index: int, twisting: tuple[int]
     ) -> Iterator:
         # 1) Test if the object index is an integer.
         assert object_index in ZZ, "The object index needs to be an integer."
@@ -327,7 +327,7 @@ class LefschetzCollection(object):
                     x2 = point[0]
                     t2 = point[1:]
                     if other == point:
-                        relative_position == "after"
+                        relative_position = "after"
                 # 4.1.2) If we are after our point, return (point,other).
                 else:
                     x1 = point[0]
@@ -663,3 +663,30 @@ class LefschetzCollection(object):
                 return (
                     "CAUTION: Can not print a layer for more than two free directions."
                 )
+                
+def Constructor2D ( starting_block, twist ) :
+    initial = LefschetzCollection( starting_block , [twist] , [] )
+
+    def by_row_lengths ( row_lengths:tuple[int] ) -> LefschetzCollection :
+        assert isinstance( row_lengths , tuple ) , "The input for `row_lengths` needs to be a tuple."
+        support = []
+        for index , length in enumerate(row_lengths) :
+            assert length in ZZ , "The {i}-th row length needs to be an integer."
+            assert 0 <= length , "The {i}-th row length needs to be non-negative."
+            support += [ (index,i,) for i in range(length) ]
+        return LefschetzCollection( initial._starting_blow , initial._twists , support )
+                
+def MyCollection () :
+    X = variety.OGr(3,9)
+    fw = X._fw
+    LC  = LefschetzCollection( [X.O()] , [] , [(0,)] )
+    LC += LefschetzCollection( [X.U().dual()] , [] , [(0,)] )
+    LC += LefschetzCollection( [X.U().dual().wedge(2)] , [] , [(0,)] )
+    LC += LefschetzCollection( [X.S()] , [] , [(0,)] )
+    LC += LefschetzCollection( [X.S()*X.U().dual() + X.S()] , [] , [(0,)] )
+    LC += LefschetzCollection( [X.S()*X.U().dual().sym(2) + X.S()*X.U().dual()] , [] , [(0,)] )
+    LC  = LC.blow_up( X.O(1) , (0,1,2,3,4,) )
+    LC  = LC.remove_object( 5 , (2,) )
+    LC  = LC.remove_object( 5 , (3,) )
+    LC  = LC.remove_object( 5 , (4,) )        
+    return LC
