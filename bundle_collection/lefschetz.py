@@ -9,6 +9,7 @@ from sage.misc.table import table
 from sage.modules.free_module_element import vector
 from sage.rings.abc import SymbolicRing
 from sage.rings.integer_ring import ZZ
+from sage.rings.rational_field import QQ
 from sage.structure.element import Expression
 
 
@@ -410,6 +411,8 @@ class LefschetzCollection(object):
         """
         Returns a subcollection with respect to a family of equations.
         """
+        #TODO: Bug if one tries to cut along x.
+
         # 1) Test if the input for `equations` are expressions.
         for index, equation in enumerate(equations):
             assert isinstance(
@@ -494,6 +497,15 @@ class LefschetzCollection(object):
                     self._is_exceptional = True
         # Return the stored result.
         return self._is_exceptional
+        
+    def is_full(self) -> bool:
+        """
+        Test if self is known to be full.
+        """
+        if self._is_full == None :
+            if not self.is_of_maximal_expected_length() :
+                self._is_full = False
+        return self._is_full
 
     def is_numerically_exceptional(self) -> bool:
         """
@@ -527,6 +539,12 @@ class LefschetzCollection(object):
                     self._is_numerically_exceptional = True
         # Return the stored result.
         return self._is_numerically_exceptional
+
+    def is_of_maximal_expected_length(self) -> bool:
+        """
+        Test if self is of maximal expected length.
+        """
+        return len(self) == self._base_space.euler_characteristic()
 
     def remove_object(
         self, object_index: int, twisting: tuple[int]
@@ -703,6 +721,8 @@ class LefschetzCollection(object):
                 )
 
 
+# General constructors
+
 def Construct_2D_by_rows(
     twist: BundleBWB, rows: list[tuple[BundleBWB, int]]
 ) -> LefschetzCollection:
@@ -727,6 +747,8 @@ def Construct_2D_by_rows(
     return LefschetzCollection(starting_block, twists, support)
 
 
+# Concrete examples
+
 def Beilinson(n: int) -> LefschetzCollection:
     """
     Returns Beilinson's full exceptional collection on the projective space PP(n).
@@ -740,7 +762,9 @@ def Beilinson(n: int) -> LefschetzCollection:
       Funktsional. Anal. i Prilozhen.12(1978), no.3, 68–69.
     """
     X = variety.PP(n)
-    return Construct_2D_by_rows(X.O(1), [(X.O(), n + 1)])
+    output = Construct_2D_by_rows(X.O(1), [(X.O(), n + 1)])
+    output._is_full = True
+    return output
 
 
 def Fonarev(k: int, N: int) -> LefschetzCollection:
@@ -788,7 +812,178 @@ def Kapranov(k: int, N: int) -> LefschetzCollection:
         bdl = bundle.BundleBWB.from_tuple(X, weight, "ambt")
         row_length = N - k + 1 - weight[0]
         rows += [(bdl, row_length)]
-    return Construct_2D_by_rows(X.O(1), rows)
+    output = Construct_2D_by_rows(X.O(1), rows)
+    output._is_full = True
+    return output
+
+
+def KuznetsovPolishchuk ( base_space ) -> Iterator[ tuple[ int , int , int , "weight" , str ] ] :
+    """
+    Returns the collection of Kuznetsov and Polishchuk on X=G/P.
+
+    INPUT:
+    - `base_space` -- PartialFlagVariety; Homogeneous variety.
+
+    OUTPUT:
+    - `total_counter` -- Counter running over all objects of the collection.
+    - `block_counter` -- Counter running over all objects of the current block.
+    - `t` -- Integer; block index.
+    - `lambda` -- highest weight of object.
+    - `bdl` -- string description of cE(Lambda).
+
+    REFERENCE:
+    - [KP2016] Kuznetsov, Alexander; Polishchuk, Alexander Exceptional collections on 
+      isotropic Grassmannians. J. Eur. Math. Soc. (JEMS) 18 (2016), no. 3, 507–574.
+    """
+    #TODO: Implement collection for exceptional cases.
+    assert isinstance( base_space , PartialFlagVariety ) , "The input for `base_space` needs to be a partial flag variety."
+    assert base_space.is_generalized_grassmannian() , "The method is only implemented for generalized Grassmannians; i.e. irreducible and maximal parabolic subgroup."
+    cartan_family = base_space.cartan_family()
+    n = base_space.cartan_rank()
+    k = base_space.k()
+    blocks = dict({})
+    # Conjecture 9.8. on page 49
+    if   cartan_family == "A" :
+        l = n+1-k
+        # Collect all intersection points between a line segment from (0,0) to (k,l) and
+        # a grid { (x,y) : x \in ZZ or y \in ZZ }
+        slope = l/k
+        Q = []
+        for x1 in range(k+1) :
+            y1 = slope*x1
+            Q += [ ( x1 , y1 ) ]
+            if x1 < k: # Notice: 0 < slope = (n+1)/k - 1 if and only if k < n+1
+                Q += [ ( y2/slope , y2 )
+                       for y2 in range( ceil(y1) , floor(y1+slope)+1 )
+                       if y1 < y2 and y2 < y1+slope
+                     ]
+        for t , (x,y) in enumerate(Q) :
+            a = floor(x)
+            b = floor(y)
+            c = k - ceil(x)
+            d = l - ceil(y)
+            block = []
+            for p1 in IntegerListsLex( length=a , min_part=t , max_part=d+t , max_slope=0 ) :
+                for p2 in IntegerListsLex( length=b , min_part=0 , max_part=c , max_slope=0 ) :
+                    block += [ tuple( list(p1) + 
+                                      (k-a)*[ t ] + 
+                                      (n-b-k)*[ 0 ] + 
+                                      list(vector(ZZ,p2)-vector(ZZ,b*[c]))
+                                    )
+                             ]
+            block.reverse()
+            blocks.update({ t : block })
+    elif cartan_family == "B" or cartan_family == "D" :
+        # Equation 56 on page 39
+        if   cartan_family == "B" : e = 1/2
+        elif cartan_family == "D" : e = 0
+        # k <= n-1 if Cartan family is B or k <= n-2 if Cartan family is D
+        # Theorem 9.1. on page 42
+        if   k in range( 1, ZZ(n+2*e-1) ) :
+            for t in range(k) :
+                block = []
+                for p1 in IntegerListsLex ( length=t , min_part=t , max_part=2*n+2*e-k-2 , max_slope=0 ) :
+                    for p2 in IntegerListsLex ( length=n-k , min_part=0 , max_part=2*floor((k-t)/2) , max_slope=0 ) :
+                        p2 = vector(ZZ,list(p2))-vector(ZZ,(n-k)*[floor((k-t)/2)])
+                        highest_weight = tuple( list(p1) + 
+                                                (k-t)*[ t ] +
+                                                list(p2)
+                                              )
+                        if highest_weight[n-1] >= (2*e-1)*highest_weight[n-2] :
+                            block += [ highest_weight ]
+                block.reverse()
+                blocks.update({ t : block })
+                block = []
+                for p1 in IntegerListsLex ( length=t , min_part=t , max_part=2*n+2*e-k-2 , max_slope=0 ) :
+                    for p2 in IntegerListsLex ( length=n-k , min_part=0 , max_part=floor((k-t)/2-1/2)+floor((k-t)/2+1/2) , max_slope=0 ) :
+                        p2 = vector(ZZ,list(p2))-vector(ZZ,(n-k)*[floor((k-t)/2+1/2)])
+                        highest_weight = tuple( vector( QQ, list(p1) + 
+                                                            (k-t)*[ t ] + 
+                                                            list(p2)
+                                                      ) + 
+                                                vector(QQ,n*[1/2])
+                                              )
+                        if highest_weight[n-1] >= (2*e-1)*highest_weight[n-2] :
+                            block += [ highest_weight ]
+                block.reverse()
+                blocks.update({ t+1/2 : block })
+            for t in range( k, ZZ(2*n+2*e-k-1) ) :
+                block = [ tuple( list(p1) + 
+                                 [ t ] + 
+                                 (n-k)*[ 0 ]
+                               )
+                          for p1 in IntegerListsLex ( length=k-1 , min_part=t , max_part=2*n+2*e-k-2 , max_slope=0 )
+                        ]
+                block.reverse()
+                blocks.update({ t : block })    
+        # k == n if Cartan family is B or k from { n-1 , n } if Cartan family is D
+        # Theorem 9.3. on page 43
+        elif k in range( ZZ(n+2*e-1), n+1 ) :
+            # D_n/P_n-1 and D_n/P_n are both isomorphic to B_n-1/P_n-1
+            if cartan_family == "D" :
+                base_space = variety.OGr(n-1,2*n-1)
+                cartan_family = base_space.cartan_family()
+                n = base_space.cartan_rank()
+                k = base_space.k()
+            for t in range(n) :
+                block = []
+                for p1 in IntegerListsLex ( length=t , min_part=t , max_part=n-1 , max_slope=0 ) :
+                    block += [ tuple( list(p1) + 
+                                      (n-t)*[ t ]
+                                    )
+                             ]
+                block.reverse()
+                blocks.update({ 2*t   : block })
+                blocks.update({ 2*t+1 : [ tuple( vector(QQ,highest_weight) + 
+                                                 vector(QQ,n*[1/2])
+                                               )
+                                          for highest_weight in blocks[2*t]
+                                        ]
+                              })
+    # Theorem 9.2. on page 42
+    elif cartan_family == "C" :
+        for t in range(k) :
+            block = []
+            for p1 in IntegerListsLex ( length=t , min_part=t , max_part=2*n-k , max_slope=0 ) :
+                for p2 in IntegerListsLex ( length=n-k , min_part=0 , max_part=floor((k-t)/2) , max_slope=0 ) :
+                    block += [ tuple( list(p1) + 
+                                      (k-t)*[t] + 
+                                      list(p2)
+                                    )
+                             ]
+            block.reverse()
+            blocks.update({ t : block })
+        for t in range(k, 2*n-k+1 ) :
+            block = []
+            for p1 in IntegerListsLex ( length=k-1 , min_part=t , max_part=2*n-k , max_slope=0 ) :
+                block += [ tuple( list(p1) + 
+                                  [t] +
+                                  (n-k)*[ 0 ]
+                                )
+                         ]
+            block.reverse()
+            blocks.update({ t : block })
+    elif cartan_family == "E" :
+        raise NotImplementedError()
+    elif cartan_family == "F" :
+        raise NotImplementedError()
+    elif cartan_family == "G" :
+        raise NotImplementedError()
+    for t , block in blocks.items() :
+        stock = []
+        for highest_weight in block :
+            bdl = bundle.BundleBWB.from_tuple( base_space, highest_weight, "ambt" )
+            if   cartan_family == "A" :
+                description = str(bdl)
+            elif cartan_family == "B" or cartan_family == "C" or cartan_family == "D" :
+                if len(stock) == 0 :
+                    description = str(bdl)
+                else :
+                    description = "Right mutation of {} through {}.".format(str(bdl), ",".join(stock))
+            elif cartan_family == "E" or cartan_family == "F" or cartan_family == "G" :
+                raise NotImplementedError()                    
+            yield t , highest_weight , description
+            stock += [ str(bdl) ]
 
 
 def SpinorSubcollection(n: int) -> LefschetzCollection:
