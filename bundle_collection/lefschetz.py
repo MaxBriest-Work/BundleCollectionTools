@@ -869,21 +869,18 @@ def KuznetsovPolishchuk(base_space) -> Iterator[tuple[int, int, int, "weight", s
             b = floor(y)
             c = k - ceil(x)
             d = l - ceil(y)
-            block = []
-            for p1 in IntegerListsLex(
-                length=a, min_part=t, max_part=d + t, max_slope=0
-            ):
-                for p2 in IntegerListsLex(
-                    length=b, min_part=0, max_part=c, max_slope=0
-                ):
-                    block += [
-                        tuple(
-                            list(p1)
-                            + (k - a) * [t]
-                            + (n - b - k) * [0]
-                            + list(vector(ZZ, p2) - vector(ZZ, b * [c]))
-                        )
-                    ]
+            block = [
+                tuple(
+                    list(p1)
+                    + (k - a) * [t]
+                    + (n - b - k) * [0]
+                    + list(vector(ZZ, p2) - vector(ZZ, b * [c]))
+                )
+                for p2 in IntegerListsLex(length=b, min_part=0, max_part=c, max_slope=0)
+                for p1 in IntegerListsLex(
+                    length=a, min_part=t, max_part=d + t, max_slope=0
+                )
+            ]
             block.reverse()
             blocks.update({t: block})
     elif cartan_family == "B" or cartan_family == "D":
@@ -958,11 +955,12 @@ def KuznetsovPolishchuk(base_space) -> Iterator[tuple[int, int, int, "weight", s
                 n = base_space.cartan_rank()
                 k = base_space.k()
             for t in range(n):
-                block = []
-                for p1 in IntegerListsLex(
-                    length=t, min_part=t, max_part=n - 1, max_slope=0
-                ):
-                    block += [tuple(list(p1) + (n - t) * [t])]
+                block = [
+                    tuple(list(p1) + (n - t) * [t])
+                    for p1 in IntegerListsLex(
+                        length=t, min_part=t, max_part=n - 1, max_slope=0
+                    )
+                ]
                 block.reverse()
                 blocks.update({2 * t: block})
                 blocks.update(
@@ -977,22 +975,24 @@ def KuznetsovPolishchuk(base_space) -> Iterator[tuple[int, int, int, "weight", s
     # Theorem 9.2. on page 42
     elif cartan_family == "C":
         for t in range(k):
-            block = []
-            for p1 in IntegerListsLex(
-                length=t, min_part=t, max_part=2 * n - k, max_slope=0
-            ):
+            block = [
+                tuple(list(p1) + (k - t) * [t] + list(p2))
                 for p2 in IntegerListsLex(
                     length=n - k, min_part=0, max_part=floor((k - t) / 2), max_slope=0
-                ):
-                    block += [tuple(list(p1) + (k - t) * [t] + list(p2))]
+                )
+                for p1 in IntegerListsLex(
+                    length=t, min_part=t, max_part=2 * n - k, max_slope=0
+                )
+            ]
             block.reverse()
             blocks.update({t: block})
         for t in range(k, 2 * n - k + 1):
-            block = []
-            for p1 in IntegerListsLex(
-                length=k - 1, min_part=t, max_part=2 * n - k, max_slope=0
-            ):
-                block += [tuple(list(p1) + [t] + (n - k) * [0])]
+            block = [
+                tuple(list(p1) + [t] + (n - k) * [0])
+                for p1 in IntegerListsLex(
+                    length=k - 1, min_part=t, max_part=2 * n - k, max_slope=0
+                )
+            ]
             block.reverse()
             blocks.update({t: block})
     elif cartan_family == "E":
