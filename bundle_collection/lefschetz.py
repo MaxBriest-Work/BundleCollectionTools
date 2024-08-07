@@ -826,6 +826,7 @@ def Fonarev(k: int, N: int) -> LefschetzCollection:
     REFERENCE:
     - [Fon2012] Fonarev, A.: On minimal Lefschetz decompositions for Grassmannians
     """
+    #TODO: Implement Young diagrams and in particular their minimal upper triangulars.
     raise NotImplementedError()
     # X = variety.Gr(k,N)
     # output = Empty_Collection()
