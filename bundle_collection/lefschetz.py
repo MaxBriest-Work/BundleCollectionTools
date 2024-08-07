@@ -153,7 +153,7 @@ class LefschetzCollection(object):
         # 3.1) For each direction, we store in `_sizes` the minimum and the maximum of
         #      the extent.
         self._sizes = self._dimension * [(None, None)]
-        # 3.2) Store each object index which appears at least once; i.e. the object is 
+        # 3.2) Store each object index which appears at least once; i.e. the object is
         #      alive.
         alive = []
         # 3.3) Test if the support is given as list.
@@ -187,8 +187,8 @@ class LefschetzCollection(object):
                         )
                         #        Store every object index which appears at least once in
                         #        the support.
-                        if not entry in alive :
-                            alive += [ entry ]
+                        if not entry in alive:
+                            alive += [entry]
                     else:
                         assert (
                             entry in ZZ
@@ -237,20 +237,22 @@ class LefschetzCollection(object):
             # 3.4.2.3) Reverse the order due to reversed lexicographical order of
             #          `IntegerListsLex`.
             self._support.reverse()
-        # 4) If the starting block contains dead objects, i.e. objects which are not 
+        # 4) If the starting block contains dead objects, i.e. objects which are not
         #    supported, then we drop this from the starting block and the support.
         alive.sort()
-        if len(alive) < len(self._starting_block) :
-            self._starting_block = [ bdl
-                                     for object_index , bdl in enumerate(self._starting_block)
-                                     if object_index in alive
-                                   ]
-            translation = { old_index : new_index
-                            for new_index , old_index in enumerate(alive)
-                          }
-            self._support = [ tuple( [ translation[point[0]] ] + list(point[1:]) )
-                              for point in self._support
-                            ]
+        if len(alive) < len(self._starting_block):
+            self._starting_block = [
+                bdl
+                for object_index, bdl in enumerate(self._starting_block)
+                if object_index in alive
+            ]
+            translation = {
+                old_index: new_index for new_index, old_index in enumerate(alive)
+            }
+            self._support = [
+                tuple([translation[point[0]]] + list(point[1:]))
+                for point in self._support
+            ]
         # 5) Initialise a bunch of auxiliary attributes.
         # 5.1) If the Gram matrix has been computed, then we store the result in
         #      `_gram_matrix`.
@@ -449,7 +451,7 @@ class LefschetzCollection(object):
                     equation(
                         dict(
                             {
-                                variable : value
+                                variable: value
                                 for variable, value in zip(
                                     self.parameters(), support_point
                                 )
@@ -565,18 +567,18 @@ class LefschetzCollection(object):
         """
         return len(self) == self._base_space.euler_characteristic()
 
-    def parameters(self) -> tuple[ "variables" ]:
+    def parameters(self) -> tuple["variables"]:
         """
         Returns the parameters `x` and `t` as combined tuple.
         """
-        if self._dimension == 0 :
+        if self._dimension == 0:
             return tuple([])
-        elif self._dimension == 1 :
+        elif self._dimension == 1:
             return tuple([self._x])
-        elif self._dimension == 2 :
-            return tuple([self._x,self._t])
-        else :
-            return tuple([self._x]+list(self._t))
+        elif self._dimension == 2:
+            return tuple([self._x, self._t])
+        else:
+            return tuple([self._x] + list(self._t))
 
     def remove_object(
         self, object_index: int, twisting: tuple[int]
@@ -906,9 +908,7 @@ def KuznetsovPolishchuk(base_space) -> Iterator[tuple[int, int, int, "weight", s
                     + (n + 1 - b - k) * [0]
                     + list(vector(ZZ, p2) - vector(ZZ, b * [c]))
                 )
-                for p2 in IntegerListsLex(
-                    length=b, min_part=0, max_part=c, max_slope=0
-                )
+                for p2 in IntegerListsLex(length=b, min_part=0, max_part=c, max_slope=0)
                 for p1 in IntegerListsLex(
                     length=a, min_part=t, max_part=d + t, max_slope=0
                 )
@@ -1037,10 +1037,12 @@ def KuznetsovPolishchuk(base_space) -> Iterator[tuple[int, int, int, "weight", s
         stock = []
         for coefficients in block:
             if cartan_family == "A":
-                highest_weight = tuple([ coefficients[i]-coefficients[i+1]
-                                         for i in range(len(coefficients)-1)
-                                       ]
-                                      )
+                highest_weight = tuple(
+                    [
+                        coefficients[i] - coefficients[i + 1]
+                        for i in range(len(coefficients) - 1)
+                    ]
+                )
                 bdl = bundle.BundleBWB.from_tuple(base_space, highest_weight, "fw")
                 description = str(bdl)
             elif cartan_family == "B" or cartan_family == "C" or cartan_family == "D":
