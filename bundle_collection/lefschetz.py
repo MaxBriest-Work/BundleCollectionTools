@@ -350,8 +350,8 @@ class LefschetzCollection(object):
         Given a bundle `bdl`, test if `self` can be extended and return an iterator for 
         all possible support points.
         """
+        assert isinstance( bdl , BundleBWB ) , "The input for `bdl` needs to be a homogeneous bundle in BWB-format."
         raise NotImplementedError()
-
 
     def get_semiorthogonal_relations_for_object(
         self, object_index: int, twisting: tuple[int]
