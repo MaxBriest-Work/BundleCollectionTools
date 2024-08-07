@@ -153,23 +153,26 @@ class LefschetzCollection(object):
         # 3.1) For each direction, we store in `_sizes` the minimum and the maximum of
         #      the extent.
         self._sizes = self._dimension * [(None, None)]
-        # 3.2) Test if the support is given as list.
+        # 3.2) Store each object index which appears at least once; i.e. the object is 
+        #      alive.
+        alive = []
+        # 3.3) Test if the support is given as list.
         assert isinstance(support, list), "The support needs to be a list."
-        # 3.3) Test if there are support points and therefore we ensure that not empty
+        # 3.4) Test if there are support points and therefore we ensure that not empty
         #      arguments are passed to minimum- and maximum-functions.
         if 0 < len(support):
-            # 3.3.1) If the support is non-empty, run over the list `support` and consi-
+            # 3.4.1) If the support is non-empty, run over the list `support` and consi-
             #        der its objects.
             for point in support:
-                # 3.3.1.1) Test if a support point is given as tuple.
+                # 3.4.1.1) Test if a support point is given as tuple.
                 assert isinstance(point, tuple), "The support points need to be tuples."
-                # 3.3.1.2) Test if a support point has length d (d=dimension).
+                # 3.4.1.2) Test if a support point has length d (d=dimension).
                 assert (
                     len(point) == self._dimension
                 ), "The support points need to be of length {d}.".format(
                     d=self._dimension
                 )
-                # 3.3.1.3) Given a support point, run over its entries.
+                # 3.4.1.3) Given a support point, run over its entries.
                 for position, entry in enumerate(point):
                     # 3.4.1.3.1) The first entry corresponds to a object of the starting
                     #            block. Hence, it needs to be in the range(l) where l is
@@ -182,6 +185,10 @@ class LefschetzCollection(object):
                         ), "For a given support point, the first entry needs to be in the range from 0 to {l}.".format(
                             l=len(self._starting_block)
                         )
+                        #        Store every object index which appears at least once in
+                        #        the support.
+                        if not entry in alive :
+                            alive += [ entry ]
                     else:
                         assert (
                             entry in ZZ
@@ -207,13 +214,13 @@ class LefschetzCollection(object):
                         new_minimum,
                         new_maximum,
                     )
-            # 3.3.2) Bring the support points in lexicographical order (i.e. from low to
+            # 3.4.2) Bring the support points in lexicographical order (i.e. from low to
             #        high).
-            # 3.3.2.1) The shift describes the vector from the origin to point with mi-
+            # 3.4.2.1) The shift describes the vector from the origin to point with mi-
             #          nimal entries. This is necessary as `IntegerListsLex` runs over
             #          non-negative integer lists.
             shift = vector(ZZ, [minimum for minimum, maximum in self._sizes][::-1])
-            # 3.3.2.2) Run over all non-negative integer points with entries bounded by
+            # 3.4.2.2) Run over all non-negative integer points with entries bounded by
             #          the appropriated maximal extent in the reversed lexicographical
             #          order (i.e. from higher to lower).
             for point in IntegerListsLex(
@@ -227,22 +234,36 @@ class LefschetzCollection(object):
                 # attribute `_support`.
                 if point in support:
                     self._support += [point]
-            # 3.3.2.3) Reverse the order due to reversed lexicographical order of
+            # 3.4.2.3) Reverse the order due to reversed lexicographical order of
             #          `IntegerListsLex`.
             self._support.reverse()
-        # 4) Initialise a bunch of auxiliary attributes.
-        # 4.1) If the Gram matrix has been computed, then we store the result in
+        # 4) If the starting block contains dead objects, i.e. objects which are not 
+        #    supported, then we drop this from the starting block and the support.
+        alive.sort()
+        if len(alive) < len(self._starting_block) :
+            self._starting_block = [ bdl
+                                     for object_index , bdl in enumerate(self._starting_block)
+                                     if object_index in alive
+                                   ]
+            translation = { old_index : new_index
+                            for new_index , old_index in enumerate(alive)
+                          }
+            self._support = [ tuple( [ translation[point[0]] ] + list(point[1:]) )
+                              for point in self._support
+                            ]
+        # 5) Initialise a bunch of auxiliary attributes.
+        # 5.1) If the Gram matrix has been computed, then we store the result in
         #      `_gram_matrix`.
         self._gram_matrix = None
-        # 4.2) If it has been checked whether `self` is (numerically) exceptional, then
+        # 5.2) If it has been checked whether `self` is (numerically) exceptional, then
         #      we store the result in `_is_exceptional` or `_is_numerically_exceptional`
         #      respectively.
         self._is_exceptional = None
         self._is_numerically_exceptional = None
-        # 4.3) If it is known that `self` is full, then one can store a corresponding
+        # 5.3) If it is known that `self` is full, then one can store a corresponding
         #      boolean value.
         self._is_full = None
-        # 4.4)
+        # 5.4)
         self._semiorthogonal_relations = None
 
     def __iter__(self) -> Iterator[BundleBWB]:
@@ -411,8 +432,6 @@ class LefschetzCollection(object):
         """
         Returns a subcollection with respect to a family of equations.
         """
-        # TODO: Bug if one tries to cut along x.
-
         # 1) Test if the input for `equations` are expressions.
         for index, equation in enumerate(equations):
             assert isinstance(
@@ -429,12 +448,12 @@ class LefschetzCollection(object):
                 bool(
                     equation(
                         dict(
-                            [
-                                (variable, value)
+                            {
+                                variable : value
                                 for variable, value in zip(
-                                    [self._x] + list(self._t), support_point
+                                    self.parameters(), support_point
                                 )
-                            ]
+                            }
                         )
                     )
                 )
@@ -545,6 +564,19 @@ class LefschetzCollection(object):
         Test if self is of maximal expected length.
         """
         return len(self) == self._base_space.euler_characteristic()
+
+    def parameters(self) -> tuple[ "variables" ]:
+        """
+        Returns the parameters `x` and `t` as combined tuple.
+        """
+        if self._dimension == 0 :
+            return tuple([])
+        elif self._dimension == 1 :
+            return tuple([self._x])
+        elif self._dimension == 2 :
+            return tuple([self._x,self._t])
+        else :
+            return tuple([self._x]+list(self._t))
 
     def remove_object(
         self, object_index: int, twisting: tuple[int]
@@ -827,11 +859,9 @@ def KuznetsovPolishchuk(base_space) -> Iterator[tuple[int, int, int, "weight", s
     - `base_space` -- PartialFlagVariety; Homogeneous variety.
 
     OUTPUT:
-    - `total_counter` -- Counter running over all objects of the collection.
-    - `block_counter` -- Counter running over all objects of the current block.
-    - `t` -- Integer; block index.
-    - `lambda` -- highest weight of object.
-    - `bdl` -- string description of cE(Lambda).
+    - `block_index` -- Integer; block index.
+    - `highest_weight` -- highest weight of object.
+    - `descriptoin` -- string description of cE(Lambda).
 
     REFERENCE:
     - [KP2016] Kuznetsov, Alexander; Polishchuk, Alexander Exceptional collections on
@@ -873,10 +903,12 @@ def KuznetsovPolishchuk(base_space) -> Iterator[tuple[int, int, int, "weight", s
                 tuple(
                     list(p1)
                     + (k - a) * [t]
-                    + (n - b - k) * [0]
+                    + (n + 1 - b - k) * [0]
                     + list(vector(ZZ, p2) - vector(ZZ, b * [c]))
                 )
-                for p2 in IntegerListsLex(length=b, min_part=0, max_part=c, max_slope=0)
+                for p2 in IntegerListsLex(
+                    length=b, min_part=0, max_part=c, max_slope=0
+                )
                 for p1 in IntegerListsLex(
                     length=a, min_part=t, max_part=d + t, max_slope=0
                 )
@@ -1001,13 +1033,19 @@ def KuznetsovPolishchuk(base_space) -> Iterator[tuple[int, int, int, "weight", s
         raise NotImplementedError()
     elif cartan_family == "G":
         raise NotImplementedError()
-    for t, block in blocks.items():
+    for block_index, block in blocks.items():
         stock = []
-        for highest_weight in block:
-            bdl = bundle.BundleBWB.from_tuple(base_space, highest_weight, "ambt")
+        for coefficients in block:
             if cartan_family == "A":
+                highest_weight = tuple([ coefficients[i]-coefficients[i+1]
+                                         for i in range(len(coefficients)-1)
+                                       ]
+                                      )
+                bdl = bundle.BundleBWB.from_tuple(base_space, highest_weight, "fw")
                 description = str(bdl)
             elif cartan_family == "B" or cartan_family == "C" or cartan_family == "D":
+                highest_weight = coefficients
+                bdl = bundle.BundleBWB.from_tuple(base_space, highest_weight, "ambt")
                 if len(stock) == 0:
                     description = str(bdl)
                 else:
@@ -1016,7 +1054,7 @@ def KuznetsovPolishchuk(base_space) -> Iterator[tuple[int, int, int, "weight", s
                     )
             elif cartan_family == "E" or cartan_family == "F" or cartan_family == "G":
                 raise NotImplementedError()
-            yield t, highest_weight, description
+            yield block_index, coefficients, description
             stock += [str(bdl)]
 
 
