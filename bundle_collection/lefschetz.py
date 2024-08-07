@@ -46,7 +46,7 @@ class LefschetzCollection(object):
         return LefschetzCollection(starting_block, twists, support)
 
     def __contains__(self, other) -> bool:
-        #TODO: Implement method to test if a Lefschetz collection contains some other 
+        # TODO: Implement method to test if a Lefschetz collection contains some other
         #      one.
         raise NotImplementedError()
 
@@ -344,13 +344,15 @@ class LefschetzCollection(object):
         ]
         # We are finished.
         return LefschetzCollection(self._starting_block, twists, support)
-        
-    def extend_starting_block_by_object (self, bdl:BundleBWB ) -> Iterator[ tuple ]:
+
+    def extend_starting_block_by_object(self, bdl: BundleBWB) -> Iterator[tuple]:
         """
-        Given a bundle `bdl`, test if `self` can be extended and return an iterator for 
+        Given a bundle `bdl`, test if `self` can be extended and return an iterator for
         all possible support points.
         """
-        assert isinstance( bdl , BundleBWB ) , "The input for `bdl` needs to be a homogeneous bundle in BWB-format."
+        assert isinstance(
+            bdl, BundleBWB
+        ), "The input for `bdl` needs to be a homogeneous bundle in BWB-format."
         raise NotImplementedError()
 
     def get_semiorthogonal_relations_for_object(
@@ -534,7 +536,7 @@ class LefschetzCollection(object):
         Test if self is known to be full.
         """
         if self._is_full == None:
-            if len(self) < self._base_space.euler_characteristic() :
+            if len(self) < self._base_space.euler_characteristic():
                 self._is_full = False
         return self._is_full
 
