@@ -2,8 +2,8 @@ from typing import Iterator
 
 from homogeneous.bundle import BundleBWB
 from homogeneous.variety import PP, Gr
-from young.diagrams import YoungDiagrams
 from sage.combinat.integer_lists.invlex import IntegerListsLex
+from young.diagrams import YoungDiagrams
 
 from bundle_collection.lefschetz import Construct_2D_by_rows, LefschetzCollection
 
@@ -44,7 +44,7 @@ def Fonarev(k: int, N: int, label: str = "A") -> LefschetzCollection:
     if label == "A":
         rows = []
         for YD in YoungDiagrams(N - k, k).get_minimal_upper_triangulars():
-            weight = tuple(list(YD._usual_description)+(n-k)*[0])
+            weight = tuple(list(YD._usual_description) + (n - k) * [0])
             bdl = BundleBWB.from_tuple(X, weight, "ambt")
             row_length = YD.orbit_length()
             rows += [(bdl, row_length)]
@@ -55,7 +55,7 @@ def Fonarev(k: int, N: int, label: str = "A") -> LefschetzCollection:
         for YD in YoungDiagrams(N - k, k).get_upper_triangulars():
             weight = YD._usual_description
             bdl = BundleBWB.from_tuple(X, weight, "ambt")
-            row_length = YD.r() # The method r is not yet implemented!
+            row_length = YD.r()  # The method r is not yet implemented!
             rows += [(bdl, row_length)]
         output = Construct_2D_by_rows(X.O(1), rows)
         output._is_full = True
