@@ -2,11 +2,10 @@ from typing import Iterator
 
 from homogeneous.bundle import BundleBWB
 from homogeneous.variety import OGr, Quadric
-from sage.rings.integer_ring import ZZ
 from sage.combinat.integer_lists.invlex import IntegerListsLex
+from sage.rings.integer_ring import ZZ
 
 from bundle_collection.lefschetz import Construct_2D_by_rows, LefschetzCollection
-
 
 
 def Kapranov(d: int) -> LefschetzCollection:
@@ -96,7 +95,6 @@ def KuznetsovSmirnov(N: int) -> LefschetzCollection:
     output = output.remove_object(n, (0,))  # Remove the object Sym^(n-2) U.dual
     output._is_full = True
     return output
-
 
 
 def SpinorSubcollection(k: int, N: int) -> LefschetzCollection:

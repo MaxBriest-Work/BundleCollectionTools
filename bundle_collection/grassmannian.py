@@ -2,6 +2,7 @@ from typing import Iterator
 
 from homogeneous.bundle import BundleBWB
 from homogeneous.variety import PP, Gr
+from young.diagrams import YoungDiagrams
 from sage.combinat.integer_lists.invlex import IntegerListsLex
 
 from bundle_collection.lefschetz import Construct_2D_by_rows, LefschetzCollection
@@ -9,7 +10,7 @@ from bundle_collection.lefschetz import Construct_2D_by_rows, LefschetzCollectio
 
 def Beilinson(d: int) -> LefschetzCollection:
     """
-    Returns Beilinson's full exceptional collection on the projective space 
+    Returns Beilinson's full exceptional collection on the projective space
     PP(n).
 
     OUTPUT:
@@ -26,9 +27,9 @@ def Beilinson(d: int) -> LefschetzCollection:
     return output
 
 
-def Fonarev(k: int, N: int) -> LefschetzCollection:
+def Fonarev(k: int, N: int, label: str = "A") -> LefschetzCollection:
     """
-    Returns Fonarev's (conjecturally full) minimal exceptional collection on 
+    Returns Fonarev's (conjecturally full) minimal exceptional collection on
     the Grassmannian Gr(k,N).
 
     OUTPUT:
@@ -38,16 +39,29 @@ def Fonarev(k: int, N: int) -> LefschetzCollection:
     - [Fon2012] Fonarev, A.: On minimal Lefschetz decompositions for Grass-
       mannians
     """
-    X = variety.Gr(k, N)
+    X = Gr(k, N)
     n = X.cartan_rank()
-    # TODO: Implement Young diagrams and in particular their minimal upper triangulars.
-    raise NotImplementedError()
-    # output = Empty_Collection()
-    # for young_diagram , orbit_length in YoungDiagram.minimal_upper_triangulars( N-k , k ) :
-    #    bdl = X.bdl( YD )
-    #    row_length = orbit_length
-    #    rows += [ (bdl, row_length ) ]
-    # return Construct_2D_by_rows( X.O(1), rows )
+    if label == "A":
+        rows = []
+        for YD in YoungDiagrams(N - k, k).get_minimal_upper_triangulars():
+            weight = tuple(list(YD._usual_description)+(n-k)*[0])
+            bdl = BundleBWB.from_tuple(X, weight, "ambt")
+            row_length = YD.orbit_length()
+            rows += [(bdl, row_length)]
+        output = Construct_2D_by_rows(X.O(1), rows)
+        return output
+    elif label == "B":
+        rows = []
+        for YD in YoungDiagrams(N - k, k).get_upper_triangulars():
+            weight = YD._usual_description
+            bdl = BundleBWB.from_tuple(X, weight, "ambt")
+            row_length = YD.r() # The method r is not yet implemented!
+            rows += [(bdl, row_length)]
+        output = Construct_2D_by_rows(X.O(1), rows)
+        output._is_full = True
+        return output
+    else:
+        raise ValueError("There are tow labels, namely `A` or `B`.")
 
 
 def Kapranov(k: int, N: int) -> LefschetzCollection:
@@ -56,11 +70,11 @@ def Kapranov(k: int, N: int) -> LefschetzCollection:
 
     OUTPUT:
     - Full exceptional collection cU^alpha
-      with n-k => alpha_1 => alpha_2 => ... => alpha_k => 0 (lexicographically 
+      with n-k => alpha_1 => alpha_2 => ... => alpha_k => 0 (lexicographically
       ordered)
 
     REFERENCE:
-    - [Kap1988] Kapranov, M. M.: On the derived categories of coherent sheaves 
+    - [Kap1988] Kapranov, M. M.: On the derived categories of coherent sheaves
       on some homogeneous spaces. Invent. Math.92(1988), no.3, 479–508.
     """
     X = Gr(k, N)
@@ -80,11 +94,10 @@ def Kapranov(k: int, N: int) -> LefschetzCollection:
     return output
 
 
-
 def TautologicalSubcollection(k: int, N: int) -> LefschetzCollection:
     X = Gr(k, N)
     n = X.cartan_rank()
-    fano_index = n+1
+    fano_index = n + 1
     weights = []
     weights += [
         tuple(list(partition) + (n - k) * [0])
