@@ -301,7 +301,7 @@ class LefschetzCollection(object):
 
     def blow_up(self, new_twist: BundleBWB, extension: tuple) -> "LefschetzCollection":
         """
-        Returns a user-friendly description of `self`.
+        ???
         """
         # 1) Various tests on the input `new_twist`.
         # 1.1) Test if the new twist is a bundle in the BWB-format.
@@ -417,7 +417,9 @@ class LefschetzCollection(object):
             for difference in self._semiorthogonal_relations[(x1, x2)]:
                 yield (x1, zero), (x2, difference)
 
-    def get_object(self, object_index: int, twisting: tuple[int]) -> BundleBWB:
+    def get_object(
+        self, object_index: int, twisting: tuple[int], respect_support: bool = True
+    ) -> BundleBWB:
         """
         Returns a selected object of `self`.
         """
@@ -428,11 +430,14 @@ class LefschetzCollection(object):
         assert (
             len(twisting) == self._dimension - 1
         ), "The number of twists needs to be {c}.".format(c=self._dimension - 1)
+        assert isinstance(
+            respect_support, bool
+        ), "The input for `respect_support` needs to be support."
         # 3) Form the corresponding point.
         point = tuple([object_index] + list(twisting))
         # 4) Test if the point lies in the support.
         #    Yes: Construct the corresponding object
-        if point in self._support:
+        if point in self._support or respect_support == False:
             output = self._starting_block[object_index]
             for position, exponent in enumerate(twisting):
                 output *= self._twists[position] ** exponent
@@ -513,14 +518,14 @@ class LefschetzCollection(object):
                 for (x1, t1), (x2, t2) in self.get_semiorthogonal_relations():
                     # 3.1) Test if each object is exceptional.
                     if x1 == x2 and t1 == t2:
-                        E = self.get_object(x1, t1)
+                        E = self.get_object(x1, t1, respect_support=False)
                         if E.is_exceptional() == False:
                             self._is_exceptional = False
                             break
                     # 3.2) Test if there are no morphims from hight to low.
                     else:
-                        E1 = self.get_object(x1, t1)
-                        E2 = self.get_object(x2, t2)
+                        E1 = self.get_object(x1, t1, respect_support=False)
+                        E2 = self.get_object(x2, t2, respect_support=False)
                         if E2.is_semiorthogonal_to(E1) == False:
                             self._is_exceptional = False
                             break
@@ -548,8 +553,8 @@ class LefschetzCollection(object):
         #    Yes: The method has not run yet.
         if self._is_numerically_exceptional == None:
             # 2) Test if the attribute `_is_exceptional` is True.
-            #    Yes: `self` is exceptional and therefore needs to be likewise numer-
-            #         ically exceptional.
+            #    Yes: `self` is exceptional and therefore needs to be likewise
+            #         numerically exceptional.
             if self._is_exceptional == True:
                 self._is_numerically_exceptional = True
             #    No : Run the method.
@@ -559,15 +564,19 @@ class LefschetzCollection(object):
                     # 3.1) Test if each object is exceptional.
                     if x1 == x2 and t1 == t2:
                         E = self.get_object(x1, t1)
-                        E.is_numerically_exceptional()
-                    # 3.2) Test if there are no morphims from hight to low.
+                        if E.is_numerically_exceptional() == False:
+                            self._is_numerically_exceptional = False
+                            break
+                    # 3.2) Test if there are no morphims from high to low.
                     else:
                         E1 = self.get_object(x1, t1)
                         E2 = self.get_object(x1, t1)
-                        E2.is_numerically_semiorthogonal_to(E1)
-                # 4) If we reach this point, then all semiorthogonal relations are sa-
-                #    tisfied numerically. Hence, `self` needs to be numerical exception-
-                #    al.
+                        if E2.is_numerically_semiorthogonal_to(E1) == False:
+                            self._is_numerically_exceptional = False
+                            break
+                # 4) If we reach this point, then all semiorthogonal relations
+                #    are satisfied numerically. Hence, `self` needs to be nu-
+                #    merical exceptional.
                 if self._is_numerically_exceptional == None:
                     self._is_numerically_exceptional = True
         # Return the stored result.
@@ -795,75 +804,6 @@ def Construct_2D_by_rows(
 
 
 # Concrete examples
-
-
-def Beilinson(n: int) -> LefschetzCollection:
-    """
-    Returns Beilinson's full exceptional collection on the projective space PP(n).
-
-    OUTPUT:
-    - Lefschetz collection with starting block ( O_X ) and support partition
-      (n+1)*[ 1 ].
-
-    REFERENCE:
-    - [Bei1978] Beilinson, A. A.: Coherent sheaves on Pn and problems in linear algebra.
-      Funktsional. Anal. i Prilozhen.12(1978), no.3, 68–69.
-    """
-    X = variety.PP(n)
-    output = Construct_2D_by_rows(X.O(1), [(X.O(), n + 1)])
-    output._is_full = True
-    return output
-
-
-def Fonarev(k: int, N: int) -> LefschetzCollection:
-    """
-    Returns Fonarev's (conjecturally full) minimal exceptional collection on the Grass-
-    mannian Gr(k,N).
-
-    OUTPUT:
-    - (Conjecturally full) minimal exceptional collection
-
-    REFERENCE:
-    - [Fon2012] Fonarev, A.: On minimal Lefschetz decompositions for Grassmannians
-    """
-    #TODO: Implement Young diagrams and in particular their minimal upper triangulars.
-    raise NotImplementedError()
-    # X = variety.Gr(k,N)
-    # output = Empty_Collection()
-    # for young_diagram , orbit_length in YoungDiagram.minimal_upper_triangulars( N-k , k ) :
-    #    bdl = X.bdl( YD )
-    #    row_length = orbit_length
-    #    rows += [ (bdl, row_length ) ]
-    # return Construct_2D_by_rows( X.O(1), rows )
-
-
-def Kapranov(k: int, N: int) -> LefschetzCollection:
-    """
-    Returns Kapranov's full exceptional collection on the Grassmannian Gr(k,N).
-
-    OUTPUT:
-    - Full exceptional collection cU^alpha with n-k => alpha_1 => alpha_2 => ... =>
-      alpha_k => 0 (lexicographically orderd)
-
-    REFERENCE:
-    - [Kap1988] Kapranov, M. M.: On the derived categories of coherent sheaves on some
-      homogeneous spaces. Invent. Math.92(1988), no.3, 479–508.
-    """
-    X = variety.Gr(k, N)
-    n = X.cartan_rank()
-    weights = [
-        tuple(list(partition) + (n - k + 1) * [0])
-        for partition in IntegerListsLex(length=k - 1, max_part=N - k, max_slope=0)
-    ]
-    weights.reverse()
-    rows = []
-    for weight in weights:
-        bdl = bundle.BundleBWB.from_tuple(X, weight, "ambt")
-        row_length = N - k + 1 - weight[0]
-        rows += [(bdl, row_length)]
-    output = Construct_2D_by_rows(X.O(1), rows)
-    output._is_full = True
-    return output
 
 
 def KuznetsovPolishchuk(base_space) -> Iterator[tuple[int, int, int, "weight", str]]:

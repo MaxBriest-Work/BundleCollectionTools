@@ -1,0 +1,5 @@
+Metadata-Version: 2.1
+Name: lefschetz
+Version: 0.1
+Summary: Work with collections of equivariant vector bundles over homogeneous varieties
+License-File: LICENSE
