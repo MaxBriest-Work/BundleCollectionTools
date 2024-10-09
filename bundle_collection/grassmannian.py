@@ -55,14 +55,15 @@ def Fonarev(k: int, N: int, label: str = "A") -> LefschetzCollection:
         for YD in YoungDiagrams(k, N - k).get_upper_triangulars():
             weight = tuple(list(YD._usual_description) + (n - k) * [0])
             bdl = BundleBWB.from_tuple(X, weight, "ambt")
-            row_length = YD.length_from_the_upper_right_corner_to_the_next_vertex_on_diagonal()
+            row_length = (
+                YD.length_from_the_upper_right_corner_to_the_next_vertex_on_diagonal()
+            )
             rows += [(bdl, row_length)]
         output = Construct_2D_by_rows(X.O(1), rows)
         output._is_full = True
         return output
     else:
         raise ValueError("There are tow labels, namely `A` or `B`.")
-
 
 
 def Kapranov(k: int, N: int) -> LefschetzCollection:
