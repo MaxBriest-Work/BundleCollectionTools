@@ -43,7 +43,7 @@ def Fonarev(k: int, N: int, label: str = "A") -> LefschetzCollection:
     n = X.cartan_rank()
     if label == "A":
         rows = []
-        for YD in YoungDiagrams(N - k, k).get_minimal_upper_triangulars():
+        for YD in YoungDiagrams(k, N - k).get_minimal_upper_triangulars():
             weight = tuple(list(YD._usual_description) + (n - k) * [0])
             bdl = BundleBWB.from_tuple(X, weight, "ambt")
             row_length = YD.orbit_length()
@@ -52,16 +52,17 @@ def Fonarev(k: int, N: int, label: str = "A") -> LefschetzCollection:
         return output
     elif label == "B":
         rows = []
-        for YD in YoungDiagrams(N - k, k).get_upper_triangulars():
-            weight = YD._usual_description
+        for YD in YoungDiagrams(k, N - k).get_upper_triangulars():
+            weight = tuple(list(YD._usual_description) + (n - k) * [0])
             bdl = BundleBWB.from_tuple(X, weight, "ambt")
-            row_length = YD.r()  # The method r is not yet implemented!
+            row_length = YD.length_from_the_upper_right_corner_to_the_next_vertex_on_diagonal()
             rows += [(bdl, row_length)]
         output = Construct_2D_by_rows(X.O(1), rows)
         output._is_full = True
         return output
     else:
         raise ValueError("There are tow labels, namely `A` or `B`.")
+
 
 
 def Kapranov(k: int, N: int) -> LefschetzCollection:
@@ -92,23 +93,3 @@ def Kapranov(k: int, N: int) -> LefschetzCollection:
     output = Construct_2D_by_rows(X.O(1), rows)
     output._is_full = True
     return output
-
-
-def TautologicalSubcollection(k: int, N: int) -> LefschetzCollection:
-    X = Gr(k, N)
-    n = X.cartan_rank()
-    fano_index = n + 1
-    weights = []
-    weights += [
-        tuple(list(partition) + (n - k) * [0])
-        for partition in IntegerListsLex(
-            length=k, ceiling=(k - 1) * [n - k] + [0], max_slope=0
-        )
-    ]
-    weights.reverse()
-    rows = []
-    for weight in weights:
-        bdl = BundleBWB.from_tuple(X, weight, "ambt")
-        row_length = fano_index
-        rows += [(bdl, row_length)]
-    return Construct_2D_by_rows(X.O(1), rows)
